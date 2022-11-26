@@ -1,0 +1,779 @@
+ ##############################################################################
+                   D3X(tm) DOS-Extender v0.90 unleash `h' alpha
+                                     the doc
+                                        *
+                        Copyright (c) 1998-2004 Daniel Borca
+                                        *
+                           dborca 'at' yahoo 'dot' com
+                          https://github.com/dborca/d3x
+ ##############################################################################
+
+
+                                        Motto:
+                                                Combining unlimited control
+                                                with unmatched efficiency...
+
+
+ ==============================================================================
+0.Table of contents
+ ==============================================================================
+        0.Table of contents
+        1.Description
+        2.Legal stuff
+        3.Download & install
+        4.Getting started
+        5.Tech stuff
+        6.Closing bytes, words, doublewords...
+
+ ==============================================================================
+1.Description
+ ==============================================================================
+    D3X (DOS 32bit eXtender) is a 32bit ring 0 protected mode DOS extender;  it
+ is used as a stub for 32bit applications: Assembly, DJGPP, WATCOM. D3X is very
+ fast, small and reliable  (deemed to have production quality, despite being an
+ alpha release). Oh, and it's written in 100% assembler, for Assembly freaks...
+
+ ==============================================================================
+2.Legal stuff
+ ==============================================================================
+    The term D3X is a shorthand  and holds no connection  with potential owners
+ of registered trademarks or other rights.
+    All product names,  trademarks and registered trademarks  contained in this
+ document are the property of their respective holders.
+    The "Software", below, refers to the complete contents of the D3X package.
+    The "Extender", below, refers to any of the D3X extender stubs.
+
+                                                                               
+2.1.License agreement:
+                                                                               
+Copyright (c) 1998-2004 Daniel Borca
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ ==============================================================================
+3.Download & install
+ ==============================================================================
+    Unzip the archive, preserving the directory structure.
+
+                                                                               
+3.1.Requirements:
+                                                                               
+        - 386 or higher CPU
+        - DOS v3.0 or later
+
+                                                                               
+3.2.Rebuilding:
+                                                                               
+    This baby was make'd (from D3X/SRC directory) using:
+        NASM v0.98.38           nasm.sourceforge.net
+        ALINK v1.6              alink.home.dhs.org
+        DJGPP v2.04             www.delorie.com (gcc v3.3.3, make v3.80)
+        UPX v1.25d (optional)   upx.sourceforge.net
+    Note: using different versions  and/or completely different tools  might or
+ might not yield satisfactory results.
+
+    You must  define exactly one  TARGET  if you want to  manually  rebuild the
+ extender, for various reasons (tweaking springs to mind).  TARGET can take one
+ of the following values:
+        TARGET=0        build Assembly stub
+        TARGET=1        build DJGPP stub
+        TARGET=2        build WATCOM stub (usually requires I21API and I33API)
+
+    Other available options:
+        EXC0f           [disabled] do not enable  this option,  unless you have
+                        read Section 5.1 and you know what you are doing.
+        PAGED           [disabled] turning this on will enable paging under RAW
+                        and XMS platforms. More details in Chapter 5.
+        SSIRQ           [disabled] enabling this will make all IRQs issued from
+                        PM to switch to a locked stack. See Section 5.1.
+        TDMAP           [disabled] use a top-down scheme when allocing PTEs for
+                        physical to linear mapping.
+        SYMLINK         [enabled*] support DJGPPish symbolic links. This option
+                        disables itself for Assembly and WATCOM stubs.
+        EXTRALINEAR     [4MB] physical mapping will eat page entries  from this
+                        pool, instead of consuming regular PTEs of host memory.
+
+    There is room left for further speed optimizations.  For example,  aligning
+ all variables and code entrypoints  could make a difference,  but I'm just too
+ lazy to do it myself..
+
+                                                                               
+3.3.Archive content:
+                                                                               
+        D3X
+        +---BIN         everything you'd ever need is here
+        +---DOC         some documentation, to (un)confuse you
+        +---ETC         wlink script, some examples
+        \---SRC         D3X NASM sourcecode and ANSI-C utilities
+
+                                                                               
+3.4.History:
+                                                                               
+        0.90.h:
+                - added option to rebuild with safe-stack IRQs
+                - option to change physical map scheme when paging
+                - increased default DJGPP stack size to 2MB
+                - fixed a bug in the [Open]Watcom manager/loader
+                - made the stub manager a little smarter
+                - package changes, source revamping, documentation update
+        0.90.g:
+                - sign extend ESI and EDI on the mouse callback
+                - some minor package changes
+        0.90.f:
+                - first "official" release...
+
+ ==============================================================================
+4.Getting started
+ ==============================================================================
+    D3X supports RAW/XMS/VCPI/DPMI platforms, but the optimal (read: safest and
+ fastest) configuration is a plain DOS system with XMS.
+
+                                                                               
+4.1.Raw images (Assembly):
+                                                                               
+    Any MZ-EXE can be extended provided it contains 32bit code, defines a stack
+ and has no relocations.  Also, to ease things, the pretty sophisticated MZ-EXE
+ header is replaced with the very simple D3X1 header. But alas! I hear you cry.
+ Worry not, the dirty job is done by StubX,  which is able to process both D3X1
+ and MZ-EXE; just type:
+        > StubX -s my_MZapp.exe
+                or
+        > StubX -s my_D3X1.exe
+ and voila! the dream comes true...
+
+    The D3X1 specifications:
+        a) D3X1 header:
+                d3x1_hdr        struc
+                        sign    dd      ?       ;signature 'D3X1'
+                        hdrsize dd      ?       ;header size (bytes)
+                        binsize dd      ?       ;binary size (bytes)
+                        addsize dd      ?       ;additional memory (bytes)
+                        entry   dd      ?       ;entry point
+                        tos     dd      ?       ;top of stack
+                d3x1_hdr        ends
+        b) Interface to D3X1:
+                eflags          ?202h
+                cs,ds,ss        program block sel (cs = code32, ds=ss = data32)
+                es              selector for transferbuffer (es:0 -> stubinfo)
+                fs              flat data selector
+                gs              flat code selector
+                eip,esp         according to header
+                .addsize        zeroed
+                <others>        undefined
+        c) Stubinfo area:
+                [00h] (byte[])  =       'd3x1stub vM.mm'
+                [10h] (dword)   =       size of stubinfo
+                [14h] (dword)   =       <unused>
+                [18h] (dword)   =       memory block handle
+                [1ch] (dword)   =       initial size (.binsize+.addsize)
+                [20h] (word)    =       transferbuffer size
+                [22h] (word)    =       transferbuffer data32 selector
+                [24h] (word)    =       transferbuffer data segment
+                [26h] (word)    =       PSP selector
+                [28h] (word)    =       transferbuffer code16 selector
+                [2ah] (word)    =       environment size
+                [2ch] (byte)    =       platform (0=RAW, 1=XMS, 2=VCPI, 3=DPMI)
+                [2dh] (byte[3]) =       reserved
+
+                                                                               
+4.2.DJGPP images (v2 only):
+                                                                               
+    The simplest thing ever done:
+        > StubX -s my_DJapp.exe
+
+                                                                               
+4.3.WATCOM images:
+                                                                               
+    Welcome to hell! Usually, the WATCOM images require an extended INT21h API.
+ For most programs out there,  the provided API and the DPMI host  is more than
+ sufficient. Also note that 16bit objects are loaded high, not low.
+    The LE-EXE  patching is a bit  more complicated, but, again,  have no fear;
+ just run StubX on such nasty monsters:
+        > StubX -s my_LEapp.exe
+
+ ==============================================================================
+5.Tech stuff
+ ==============================================================================
+    Although D3X does not support swapping, it has the capability to use paging
+ even under XMS/RAW (through the VCPI allocation scheme);  it is somehow slower
+ and the pagetables might grow very high if physical RAM is high.  On the other
+ hand, it catches any illegal memory access through page faults. Introduced for
+ future virtual memory support, this not-so-tested feature requires rebuilding.
+
+                                                                               
+5.1.Interrupt engine:
+                                                                               
+    D3X doesn't relocate PIC at all. The algorithm it uses is:
+        - under DPMI: the DPMI host handles IRQs (D3X does nothing)
+        - under VCPI: D3X reads PIC from VCPI(DE0A) and uses it as is
+        - under RAW/XMS: D3X uses default IRQs, regardless of current mappings.
+          For this,  default IRQs  must be called  through  real mode  chaining
+          (i.e. HBREAK 5.2 sets the  first PIC to int50h,  but int08h is  still
+          issued).  This is necessary  because some extenders  when in  XMS/RAW
+          mode map 1st PIC to default (no matter where PIC actually is) without
+          letting  anyone know,  and everything  gets f#*%d up.  The only thing
+          that remains safe is default location of PIC.
+    PM IRQs are issued on the user stack,  unless D3X is recompiled with SSIRQ.
+    When issuing an interrupt,  be sure you have a valid stack with at least 64
+ bytes on it.  The internal  interrupt engine is based on the  user stack  (for
+ speed) and  if there's no stack space  you have 100% chances  to get  a frozen
+ reboot or a DoubleException.
+    Some exception identification  relies on that FLAGS can't resemble  a valid
+ code selector. If this happens, exceptions with error code would be treated as
+ interrupts (which is wrong).  Intel compatible CPUs won't allow this,  because
+ Bit1==1 in FLAGS and we run at ring 0. However, various specifications can use
+ this bit, making it clearable. Thus, the simplest way to stay clear is to keep
+ IOPL!=0 (bits 12-13 in FLAGS).  Sane users shouldn't mess with this s#!t. That
+ is, you can still f#*k the system, but don't come back to me crying.  Also, if
+ a TRAP/ABORT exception w/o error code  occurs right after an instruction which
+ ends with CD??, where ?? is the exception number, you'll get an interrupt:
+                push    dword 3302h
+                popfd
+                mov     ax,01cdh
+                                <- int01h, not debug exception
+    If an exception handler is installed, it will be called in a DPMI compliant
+ manner: with the exception structure on the stack.  You can alter *ONLY* those
+ fields DPMI says you can, and nothing else.  Anyway,  there are two deviations
+ from the rule:
+        - exception 0fh  will be passed through the regular int chain;  this is
+          because of  a nice feature of the interrupt controller  being able to
+          generate spurious IRQ7's.  However, exception 0fh does not exist  (by
+          my knowledge).
+        - the client will be shut down if the exception is not raised from user
+          task or if the DPMI locked stack is exhausted, possibly due to nested
+          exceptions!
+    When  terminating due to  unhandled exception,  the returned DOS error code
+ is: e0h + exception number.
+
+                                                                               
+5.2.DPMI host:
+                                                                               
+        a) DPMI Functions:
+                Func.   Mode(s) Ver     Description
+                ------- ------- ------- -------------------------------
+                0000h   P       0.9     Allocate LDT descriptors
+                0001h   r       0.9+    Free LDT descriptor
+                0003h   P       0.9     Get huge pointer increment
+                0006h   P       0.9     Get segment base address
+                0007h   P       0.9+    Set segment base address
+                0008h   P       0.9+    Set segment limit
+                0009h   P       0.9+    Set descriptor access rights
+                000Ah   P       0.9     Create alias descriptor
+                000Bh   P       0.9     Get descriptor
+                000Ch   P       0.9+    Set descriptor
+                0100h   r       0.9     Allocate DOS memory
+                0101h   r       0.9+    Free DOS memory
+                0102h   r       0.9     Resize DOS memory
+                0200h   P       0.9     Get real-mode interrupt vector
+                0201h   P       0.9     Set real-mode interrupt vector
+                0202h   P       0.9     Get exception vector
+                0203h   P       0.9     Set exception vector
+                0204h   P       0.9     Get protected-mode int vector
+                0205h   P       0.9     Set protected-mode int vector
+                0300h   r       0.9     Simulate real-mode interrupt
+                0301h   r       0.9     Call real-mode procedure (RETF)
+                0302h   r       0.9     Call real-mode procedure (IRET)
+                0303h   P       0.9     Allocate real mode call-back
+                0304h   P       0.9     Free real mode call-back
+                0400h   P       0.9     Get version
+                0500h   P/r     0.9     Get free memory information
+                0501h   P/r     0.9     Allocate memory block
+                0502h   P/r     0.9     Free memory block
+                0503h   P/r     0.9     Resize memory block
+                0600h   P       bogus   Lock memory
+                0601h   P       bogus   Unlock memory
+                0604h   P       bogus   Get page size
+                0800h   P       0.9     Map physical address
+                0900h   P       0.9     Disable interrupts
+                0901h   P       0.9     Enable interrupts
+                0902h   P       0.9     Get interrupt state
+
+        b) Allocation strategy:
+                RAW     - kb granular   (best fit)
+                XMS     - kb granular   (???)
+                VCPI    - 4k granular   (first fit)
+                DPMI    - ???           (???)
+
+        c) DPMI 0.90 deviation list:
+                - int24h is not handled at all
+                - D3X doesn't  switch stacks  for  protected-mode IRQs,  due to
+                  speed reasons; that is, unless it is compiled with safe-stack
+                  option enabled.
+                - The  selector modification functions  don't allow non-present
+                  selectors to prevent severe exceptions.
+                - The <0.9+> functions act like <1.0>, but they never return an
+                  error code.
+
+        d) Tips & tricks:
+                - D3X  checks for  the presence of  a DPMI host first.  In that
+                  case  your program  talks to  the DPMI host and  not D3X.  As
+                  discussed above,  D3X doesn't support all  DPMI 0.9 features,
+                  so  if you develop  under a DPMI host  be sure  you sometimes
+                  test with no DPMI!
+                - Some  DPMI functions  are  *BOGUS*  (i.e. locking functions),
+                  because  D3X doesn't have virtual memory  and pages are never
+                  swapped  on disk.  Though,  these functions  are useful  when
+                  running  under another DPMI host  (that uses virtual memory),
+                  and therefore they return ok.
+                - In RAW mode,  all extended memory  is allocated  (internally)
+                  and if you run another app in shell mode,  no extended memory
+                  will be available. Sorry, may get fixed someday.
+
+                                                                               
+5.3.INT21 extended API (WATCOM version only):
+                                                                               
+    1.DOS/09h - Write String to Standard Output:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 09h
+        DS:EDX -> '$' terminated string to write
+
+    Out: always successful
+    ---------------------------------------------------------------------------
+
+    2.DOS/1Ah - Set Disk Transfer Area:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 1Ah
+        DS:EDX -> buffer for DTA
+
+    Out: always successful
+    ---------------------------------------------------------------------------
+
+    3.DOS/1Bh - Get Allocation Information for Default Drive:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 1Bh
+
+    Out: always successful:
+                AL      = sectors per cluster
+                ECX     = bytes per sector
+                EDX     = total number of clusters
+                DS:EBX -> media ID byte
+    ---------------------------------------------------------------------------
+
+    4.DOS/1Ch - Get Allocation Information for Specific Drive:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 1Ch
+        DL      = drive number
+
+    Out: if successful:
+                same as DOS/1Bh
+         if failed:
+                AL      = FFh (invalid drive)
+    ---------------------------------------------------------------------------
+
+    5.DOS/1Fh - Get Drive Parameter Block for Default Drive:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 1Fh
+
+    Out: if successful:
+                DS:EBX -> drive parameter block
+         if failed:
+                AL      = FFh (invalid drive)
+    ---------------------------------------------------------------------------
+
+    6.DOS/25h - Set Interrupt Vector:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 25h
+        AL      = interrupt number
+        DS:EDX -> interrupt routine
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+    ---------------------------------------------------------------------------
+
+    7.DOS/2Fh - Get Disk Transfer Area:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 2Fh
+
+    Out: always successful:
+                ES:EBX -> DTA
+    ---------------------------------------------------------------------------
+
+    8.DOS/32h - Get Drive Parameter Block for Specific Drive:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 32h
+        DL      = drive number
+
+    Out: if successful:
+                AL      = 0
+                DS:EBX -> drive parameter block
+         if failed:
+                AL      = FFh (invalid drive)
+    ---------------------------------------------------------------------------
+
+    9.DOS/34h - Get Address of InDOS Flag:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 34h
+
+    Out: always successful:
+                ES:EBX -> InDOS flag
+    ---------------------------------------------------------------------------
+
+    10.DOS/35h - Get Interrupt Vector:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 35h
+        AL      = interrupt number
+
+    Out: always successful:
+                ES:EBX -> interrupt routine
+    ---------------------------------------------------------------------------
+
+    11.DOS/39h - Create Subdirectory:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 39h
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    12.DOS/3Ah - Remove Subdirectory:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 3Ah
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    13.DOS/3Bh - Set Directory:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 3Bh
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    14.DOS/3Ch - Create File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 3Ch
+        CX      = attribute
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+                EAX     = handle
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    15.DOS/3Dh - Open File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 3Dh
+        AL      = open code
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+                EAX     = handle
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    16.DOS/3Fh - Read From File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH       = 3Fh
+        BX       = file handle
+        ECX      = number of bytes to read
+        DS:EDX -> buffer to read to
+
+    Out: if successful:
+                carry flag clear
+                EAX     = number of bytes read
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    17.DOS/40h - Write To File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH       = 40h
+        BX       = file handle
+        ECX      = number of bytes to write
+        DS:EDX -> buffer to write from
+
+    Out: if successful:
+                carry flag clear
+                EAX     = number of bytes written
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    18.DOS/41h - Delete File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH       = 41h
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    19.DOS/43h - Get/Set File Attributes:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH       = 43h
+        AL       = function code
+        CX       = desired attributes
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+                CX      = current attributes
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    20.DOS/47h - Get Directory Path:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 47h
+        DL      = drive number
+        DS:ESI -> buffer for path
+
+    Out: if successful:
+                carry flag clear
+                buffer pointed to by DS:ESI is filled with the path
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    21.DOS/48h - Allocate Memory Block:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 48h
+        BX      = paragraphs to allocate
+
+    Out: if successful:
+                carry flag clear
+                EAX     = selector for memory block
+         if failed:
+                carry flag set
+                EAX     = error code
+                EBX     = maximum paragraphs available
+    ---------------------------------------------------------------------------
+
+    22.DOS/49h - Free Memory Block:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 49h
+        ES      = selector for memory block
+
+    Out: if successful:
+                carry flag clear
+                ES      = NULL selector (to prevent loading invalid selector)
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    23.DOS/4Ah - Resize Memory Block:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 4Ah
+        BX      = total paragraphs to allocate
+        ES      = selector
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+                EBX     = maximum paragraphs available for specified block
+    ---------------------------------------------------------------------------
+
+    24.DOS/4Bh - Sub-Function 00h - Load and Execute Program:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 4Bh
+        AL      = 00h
+        DS:EDX -> path name
+        ES:EBX -> parameter block
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    25.DOS/4Eh - Search for First Filename Match:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 4Eh
+        CX      = file attribute
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+                EAX     = 0
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    26.DOS/4Fh - Search for Next Filename Match:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 4Fh
+
+    Out: if successful:
+                carry flag clear
+                EAX     = 0
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    27.DOS/56h - Rename File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 56h
+        DS:EDX -> old filename
+        ES:EDI -> new filename
+
+    Out: if successful:
+                carry flag clear
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    28.DOS/5Bh - New File:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 5Bh
+        CX      = attribute
+        DS:EDX -> ASCIIZ path name
+
+    Out: if successful:
+                carry flag clear
+                EAX     = handle
+         if failed:
+                carry flag set
+                EAX     = error code
+    ---------------------------------------------------------------------------
+
+    29.DOS/62h - Get PSP:
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AH      = 62h
+
+    Out: always successful:
+                EBX     PSP selector
+    ---------------------------------------------------------------------------
+
+                                                                               
+5.4.INT33 extended API (WATCOM version only): carry flag is always set on error
+                                                                               
+    1.MOUSE/0009h - Set graphics pointer shape
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AX      = 0009h
+        BX      = hot spot (horizontal)
+        CX      = hot spot (vertical)
+        DS:EDX -> pointer shape
+
+    Out: none
+    ---------------------------------------------------------------------------
+
+    2.MOUSE/000Ch - Set event handler
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AX      = 000Ch
+        CX      = event mask
+        DS:EDX -> event handler code
+
+    Out: none
+    ---------------------------------------------------------------------------
+
+    3.MOUSE/0016h - Save driver state
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AX      = 0016h
+        DS:EDX -> buffer for driver state
+
+    Out: none
+    ---------------------------------------------------------------------------
+
+    4.MOUSE/0017h - Load driver state
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    In: AX      = 0017h
+        DS:EDX -> buffer containing state
+
+    Out: none
+    ---------------------------------------------------------------------------
+
+                                                                               
+5.5.D3X errors:
+                                                                               
+    In some cases, the extender generates an error (`D3X: error 0x??'), and the
+ program will exit with proper error code:
+        D3X: error 0xff: need 386+ CPU
+                You need 32bit PM. Buy a 386!
+        D3X: error 0xfe: need DOS 3.0+
+                This is needed for file I/O. Upgrade!
+        D3X: error 0xfd: no DOS memory
+                The extender could not initialize. Free up some low memory, use
+                XMS/RAW (no pagetables), or decrease transferbuffer (min 2k).
+        D3X: error 0xfc: DPMI host error
+                An external DPMI host  is present  and unable  to provide  full
+                services, or is 16bit. Remove the foreign host.
+        D3X: error 0xfb: VCPI server error
+                A VCPI server  is present  and unable to provide full services.
+                Reboot without EMM (or update your Expanded Memory Manager).
+        D3X: error 0xfa: V86 but no DPMI/VCPI
+                Either the memory manager is in AUTO mode, or a strange virtual
+                mode provider lies in the background. Stop it!
+        D3X: error 0xf9: A20 gate failure
+                The extender cannot take control over the A20 line. Either is a
+                hardware error, or the memory manager is stupid.
+        D3X: error 0xf8: unable to spawn image
+                Cannot load the application file;  it may be missing, corrupted
+                or unsupported type.
+        D3X: error 0xf7: no DPMI memory
+                Failed allocating memory through  (either internal or external)
+                DPMI host.
+
+ ==============================================================================
+6.Closing bytes, words, doublewords...
+ ==============================================================================
+    D3X is dedicated to all those who love the Art of Assembler.
+
+    The DOC files for D3X may be not complete, as I'm working on this alone and
+ there are things I can't figure out for now... If you have something decent to
+ comment/ask/suggest, do not hesitate to do so.
+
+ Creditz:
+        - Adam Seychell     (DOS32 v0.1)        - idea and basics
+        + CW Sandmann       (CWSDPMI v0.90+ r4) - task and int handling
+        - Matthias Grimrath (PMODE/DJ v1.2)     - VCPI setup
+        - Michael Tippach   (WDOSX v0.96 beta 1)- LE loader, stub manager idea
+
+ Greetz:
+        Gerula ~ AG (Gfx/Code/Muzak)    - happy new games, if ever...
+
+
+ ##############################################################################
+                                        ...done by GrayWolf ~ Access Granted
+ ##############################################################################

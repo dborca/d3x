@@ -1,0 +1,10 @@
+# D3X/Watcom link target
+
+system begin d3xw
+    option osname='D3X/W'
+    libpath %WATCOM%\lib386
+    libpath %WATCOM%\lib386\dos
+    op stub=d3xw.exe
+    format os2 le
+end
+
